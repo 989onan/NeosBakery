@@ -1,14 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
-using FrooxEngine;
-
-namespace NeosBakery.Core
+namespace ResoniteBakery.Core
 {
     public static class Extensions
     {

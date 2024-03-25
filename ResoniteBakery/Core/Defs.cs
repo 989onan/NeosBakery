@@ -5,10 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 
-using BaseX;
+using Elements.Core;
 using FrooxEngine;
 
-namespace NeosBakery.Core
+namespace ResoniteBakery.Core
 {
     static class Defs
     {
@@ -233,17 +233,17 @@ namespace NeosBakery.Core
 
                     if (skyboxMaterial is GradientSkyMaterial gradientMaterial)
                     {
-                        primaryColor = gradientMaterial.BaseColor.Value;
-                        secondaryColor = gradientMaterial.BaseColor.Value;
+                        primaryColor = (color)gradientMaterial.BaseColor.Value;
+                        secondaryColor = (color)gradientMaterial.BaseColor.Value;
                     }
                     if (skyboxMaterial is ProceduralSkyMaterial proceduralMaterial)
                     {
-                        primaryColor = proceduralMaterial.SkyTint.Value;
-                        secondaryColor = proceduralMaterial.GroundColor.Value;
+                        primaryColor = (color)proceduralMaterial.SkyTint.Value;
+                        secondaryColor = (color)proceduralMaterial.GroundColor.Value;
                     }
                     if (skyboxMaterial is Projection360Material projectionMaterial)
                     {
-                        primaryColor = projectionMaterial.Tint.Value;
+                        primaryColor = (color)projectionMaterial.Tint.Value;
                     }
                 }
 

@@ -1,20 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.IO;
 
-using BaseX;
+using Elements.Core;
 using FrooxEngine;
 using Newtonsoft.Json;
 
-using static NeosBakery.Core.Paths;
-using static NeosBakery.Core.Defs;
+using static ResoniteBakery.Core.Paths;
+using static ResoniteBakery.Core.Defs;
 
-namespace NeosBakery.Core
+namespace ResoniteBakery.Core
 {
     static class LightBaker
     {
@@ -438,8 +437,8 @@ namespace NeosBakery.Core
                             PBS_MultiUV_Metallic bakedMaterial = MaterialOutputSlot.AttachComponent<PBS_MultiUV_Metallic>();
                             materialMultiplexer.Assets.Add(bakedMaterial);
                             CopyMaterialProperties(pbs, bakedMaterial);
-                            bakedMaterial.AlbedoColor.Value = new color(1f, 1f);
-                            bakedMaterial.SecondaryEmissiveColor.Value = new color(0.5f, 1f);
+                            bakedMaterial.AlbedoColor.Value = new colorX(new color(1f, 1f));
+                            bakedMaterial.SecondaryEmissiveColor.Value = new colorX(new color(0.5f, 1f));
                             await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Baked);
                         }
                         else
@@ -447,8 +446,8 @@ namespace NeosBakery.Core
                             PBS_Metallic bakedMaterial = MaterialOutputSlot.AttachComponent<PBS_Metallic>();
                             materialMultiplexer.Assets.Add(bakedMaterial);
                             CopyMaterialProperties(pbs, bakedMaterial);
-                            bakedMaterial.AlbedoColor.Value = new color(1f, 1f);
-                            bakedMaterial.EmissiveColor.Value = new color(0.5f, 1f);
+                            bakedMaterial.AlbedoColor.Value = new colorX(new color(1f, 1f));
+                            bakedMaterial.EmissiveColor.Value = new colorX(new color(0.5f, 1f));
                             await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Baked);
                             if (pbs.TextureScale.Value != new float2(1f, 1f) || pbs.TextureOffset.Value != new float2(1f, 1f))
                             {
@@ -467,8 +466,8 @@ namespace NeosBakery.Core
                             PBS_MultiUV_Specular bakedMaterial = MaterialOutputSlot.AttachComponent<PBS_MultiUV_Specular>();
                             materialMultiplexer.Assets.Add(bakedMaterial);
                             CopyMaterialProperties(pbs, bakedMaterial);
-                            bakedMaterial.AlbedoColor.Value = new color(1f, 1f);
-                            bakedMaterial.SecondaryEmissiveColor.Value = new color(0.5f, 1f);
+                            bakedMaterial.AlbedoColor.Value = new colorX(new color(1f, 1f));
+                            bakedMaterial.SecondaryEmissiveColor.Value = new colorX(new color(0.5f, 1f));
                             await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Baked);
                         }
                         else
@@ -476,8 +475,8 @@ namespace NeosBakery.Core
                             PBS_Specular bakedMaterial = MaterialOutputSlot.AttachComponent<PBS_Specular>();
                             materialMultiplexer.Assets.Add(bakedMaterial);
                             CopyMaterialProperties(pbs, bakedMaterial);
-                            bakedMaterial.AlbedoColor.Value = new color(1f, 1f);
-                            bakedMaterial.EmissiveColor.Value = new color(0.5f, 1f);
+                            bakedMaterial.AlbedoColor.Value = new colorX(new color(1f, 1f));
+                            bakedMaterial.EmissiveColor.Value = new colorX(new color(0.5f, 1f));
                             await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Baked);
                             if (pbs.TextureScale.Value != new float2(1f, 1f) || pbs.TextureOffset.Value != new float2(1f, 1f))
                             {
@@ -563,7 +562,7 @@ namespace NeosBakery.Core
             {
                 Slot textureOutputSlot = bakeOutputSlot.AddSlot(textureType.ToString());
                 RaiseOnBakeInfo("Importing: " + textureType.ToString());
-                await ImageImporter.ImportImage(texturePath, textureOutputSlot);
+                await ImageImporter.ImportImage(new FrooxEngine.ImportItem(texturePath), textureOutputSlot);
 
                 StaticTexture2D importedTexture = textureOutputSlot.GetComponent<StaticTexture2D>();
                 switch (textureType)
@@ -656,7 +655,7 @@ namespace NeosBakery.Core
             {
                 Slot textureOutputSlot = bakeOutputSlot.AddSlot(textureType.ToString());
                 RaiseOnBakeInfo("Importing: " + textureType.ToString());
-                await ImageImporter.ImportImage(texturePath, textureOutputSlot);
+                await ImageImporter.ImportImage(new FrooxEngine.ImportItem(texturePath), textureOutputSlot);
 
                 StaticTexture2D importedTexture = textureOutputSlot.GetComponent<StaticTexture2D>();
                 switch (textureType)

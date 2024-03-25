@@ -1,13 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Elements.Core;
+using FrooxEngine;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-using BaseX;
-using FrooxEngine;
-
-namespace NeosBakery.Core
+namespace ResoniteBakery.Core
 {
     static class ProceduralMeshDefinitions
     {
@@ -143,7 +139,7 @@ namespace NeosBakery.Core
 
             return stringBuilder.ToString().GetHashCode();
         }
-        static int MeshHashCode(BevelSoliRingMesh mesh)
+        static int MeshHashCode(BevelRingMesh mesh)
         {
             StringBuilder stringBuilder = new StringBuilder();
 
@@ -157,18 +153,20 @@ namespace NeosBakery.Core
 
             return stringBuilder.ToString().GetHashCode();
         }
-        static int MeshHashCode(SpiralTubeMesh mesh)
+        static int MeshHashCode(TubeSpiralMesh mesh)
         {
             StringBuilder stringBuilder = new StringBuilder();
 
-            stringBuilder.Append(mesh.TubeRadius.Value);
-            stringBuilder.Append(mesh.SpiralRadius.Value);
-            stringBuilder.Append(mesh.UpwardTrend.Value);
-            stringBuilder.Append(mesh.Sides.Value);
-            stringBuilder.Append(mesh.DistanceBetweenRings.Value);
-            stringBuilder.Append(mesh.Length.Value);
+            stringBuilder.Append(mesh.Steps.Value);
+            stringBuilder.Append(mesh.StartSpiralRadius.Value);
+            stringBuilder.Append(mesh.EndSpiralRadius.Value);
+            stringBuilder.Append(mesh.CoilPhase.Value);
+            stringBuilder.Append(mesh.CoilCount.Value);
+            stringBuilder.Append(mesh.StartPoint.Value);
+            stringBuilder.Append(mesh.EndPoint.Value);
             stringBuilder.Append(mesh.Ends.Value);
             stringBuilder.Append(mesh.Shading.Value);
+            stringBuilder.Append(mesh.ScaleCoilCountByLength.Value);
 
             return stringBuilder.ToString().GetHashCode();
         }

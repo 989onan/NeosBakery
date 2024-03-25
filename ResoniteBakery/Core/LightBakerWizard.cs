@@ -1,22 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Threading;
 using System.IO;
 
 using HarmonyLib;
-using BaseX;
-using CodeX;
+using Elements.Core;
+//using CodeX;
 using FrooxEngine;
 using FrooxEngine.UIX;
+using Elements.Assets;
 using Newtonsoft.Json;
 
-using static NeosBakery.Core.Paths;
-using static NeosBakery.Core.Defs;
+using static ResoniteBakery.Core.Paths;
+using static ResoniteBakery.Core.Defs;
 
-namespace NeosBakery.Core
+namespace ResoniteBakery.Core
 {
     class LightBakerWizard
     {
@@ -86,11 +82,15 @@ namespace NeosBakery.Core
             WizardSlot.OnPrepareDestroy += Slot_OnPrepareDestroy;
             WizardSlot.PersistentSelf = false;
 
-            NeosCanvasPanel canvasPanel = WizardSlot.AttachComponent<NeosCanvasPanel>();
-            canvasPanel.Panel.AddCloseButton();
-            canvasPanel.Panel.AddParentButton();
-            canvasPanel.Panel.Title = "Light Baker Wizard";
-            canvasPanel.Canvas.Size.Value = new float2(500f, 550f);
+            UIBuilder ui = RadiantUI_Panel.SetupPanel(WizardSlot, "Light Baker Wizard", new float2(500f, 550f));
+            float3 v = WizardSlot.LocalScale;
+            WizardSlot.LocalScale = v * 0.0005f;
+            RadiantUI_Constants.SetupEditorStyle(ui);
+            ui.VerticalLayout(4f);
+            ui.Style.MinHeight = 24f;
+            ui.Style.PreferredHeight = 24f;
+            UIBuilder canvasPanel = ui;
+
 
             Slot Data = WizardSlot.AddSlot("Data");
             meshRoot = Data.AddSlot("meshRoot").AttachComponent<ReferenceField<Slot>>();

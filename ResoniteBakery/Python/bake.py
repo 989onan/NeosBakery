@@ -4,14 +4,14 @@ import os
 import shutil
 from math import pi
 
-NeosBakeryPath = __file__.replace("bake.py", "")
-NeosBakeryOutputPath = NeosBakeryPath + "Output\\"
+ResoniteBakeryPath = __file__.replace("bake.py", "")
+ResoniteBakeryOutputPath = ResoniteBakeryPath + "Output\\"
 
-MeshesPath = NeosBakeryPath + "Assets\\Meshes\\";
-MaterialsPath = NeosBakeryPath + "Assets\\Materials\\";
-TexturesPath = NeosBakeryPath + "Assets\\Textures\\";
+MeshesPath = ResoniteBakeryPath + "Assets\\Meshes\\";
+MaterialsPath = ResoniteBakeryPath + "Assets\\Materials\\";
+TexturesPath = ResoniteBakeryPath + "Assets\\Textures\\";
 
-bakeJob = json.load(open(NeosBakeryPath + "BakeJob.json"))
+bakeJob = json.load(open(ResoniteBakeryPath + "BakeJob.json"))
 
 _scene = bpy.context.scene
 
@@ -236,7 +236,7 @@ for bakeObject in bakeJob["BakeObjects"]:
                 nodetree.links.new(mappingNode.outputs["Vector"], emissiveNode.inputs["Vector"])
                 nodetree.links.new(emissiveNode.outputs["Color"], mixRGBNode.inputs[1])
                 nodetree.links.new(mixRGBNode.outputs["Color"], inputs["Emission"])
-                outDir = NeosBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Emissive\\"
+                outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Emissive\\"
                 exportTiledTexture(emissiveNode.image, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
             if _material["Textures"][2] != -1:
                 normalNode = nodes.new(type="ShaderNodeTexImage")
@@ -247,7 +247,7 @@ for bakeObject in bakeJob["BakeObjects"]:
                 normalmapNode = nodes.new(type="ShaderNodeNormalMap")
                 nodetree.links.new(normalNode.outputs["Color"], normalmapNode.inputs["Color"])
                 nodetree.links.new(normalmapNode.outputs["Normal"], inputs["Normal"])
-                outDir = NeosBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Normal\\"
+                outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Normal\\"
                 exportTiledTexture(normalNode.image, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
             if _material["Textures"][5] != -1:
                 metallicNode = nodes.new(type="ShaderNodeTexImage")
@@ -261,7 +261,7 @@ for bakeObject in bakeJob["BakeObjects"]:
                 nodetree.links.new(splitRGBnode.outputs["R"], inputs["Metallic"])
                 nodetree.links.new(metallicNode.outputs["Alpha"], invertNode.inputs["Color"])
                 nodetree.links.new(invertNode.outputs["Color"], inputs["Roughness"])
-                outDir = NeosBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Metallic\\"
+                outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Metallic\\"
                 exportTiledTexture(metallicNode.image, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
             if _material["Textures"][6] != -1:
                 specularNode = nodes.new(type="ShaderNodeTexImage")
@@ -270,17 +270,17 @@ for bakeObject in bakeJob["BakeObjects"]:
                 specularNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True)
                 nodetree.links.new(mappingNode.outputs["Vector"], specularNode.inputs["Vector"])
                 nodetree.links.new(specularNode.outputs["Color"], inputs["Specular"])
-                outDir = NeosBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Specular\\"
+                outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Specular\\"
                 exportTiledTexture(specularNode.image, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
             if _material["Textures"][3] != -1:
                 texturePath = TexturesPath + str(_material["Textures"][3]) + ".png"
                 heightImage = bpy.data.images.load(filepath=texturePath, check_existing=True)
-                outDir = NeosBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Height\\"
+                outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Height\\"
                 exportTiledTexture(heightImage, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
             if _material["Textures"][4] != -1:
                 texturePath = TexturesPath + str(_material["Textures"][4]) + ".png"
                 occlusionImage = bpy.data.images.load(filepath=texturePath, check_existing=True)
-                outDir = NeosBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Occlusion\\"
+                outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Occlusion\\"
                 exportTiledTexture(occlusionImage, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
 
         for node in nodes:
@@ -295,7 +295,7 @@ for bakedObject in objectsToBake:
     selectedObject.select_set(True)
     bpy.ops.object.bake(use_automatic_name=True, type="COMBINED",  save_mode="EXTERNAL")
     if bakeJob["BakeMethod"] == 0:
-        savepath = NeosBakeryOutputPath + str(bakedTextures_RendererIndex[bo]) + "\\Mesh"
+        savepath = ResoniteBakeryOutputPath + str(bakedTextures_RendererIndex[bo]) + "\\Mesh"
         if not os.path.exists(savepath):
             os.makedirs(savepath)
         #For some reason, reimported meshes seem to be arbitrarily rotated. Guess I have to rotate them in-game instead.
@@ -308,7 +308,7 @@ for bakedObject in objectsToBake:
 
 bn = 0
 for bakedNode in bakeNodes:
-    savepath = NeosBakeryOutputPath + str(bakedTextures_RendererIndex[bn]) + "\\Materials\\" + str(bakedTextures_MaterialIndex[bn])
+    savepath = ResoniteBakeryOutputPath + str(bakedTextures_RendererIndex[bn]) + "\\Materials\\" + str(bakedTextures_MaterialIndex[bn])
     if not os.path.exists(savepath):
         os.makedirs(savepath)
     bakedNode.image.save_render(filepath=savepath + "\\Albedo.png")
