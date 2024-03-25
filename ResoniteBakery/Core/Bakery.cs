@@ -15,19 +15,10 @@ namespace ResoniteBakery.Core
         {
             Harmony harmony = new Harmony("net.Toxic_Cookie.ResoniteBakery");
             harmony.PatchAll();
-        }
-
-        [HarmonyPatch]
-        class DevCreateNewTesting
-        {
-            [HarmonyPatch(typeof(DevCreateNewForm), "DevCreateNewForm")]
-            public static void Postfix()
+            DevCreateNewForm.AddAction("Editor", "Light Baker Wizard", delegate (Slot s)
             {
-                DevCreateNewForm.AddAction("Editor", "Light Baker Wizard", delegate (Slot s)
-                {
-                    LightBakerWizard.GetOrCreateWizard();
-                });
-            }
+                LightBakerWizard.GetOrCreateWizard();
+            });
         }
     }
 }
