@@ -85,12 +85,12 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Python\bake.py" />
+    <Content Include="Python\bake.py">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>start /w /d "C:\Program Files (x86)\Steam\steamapps\common\NeosVR\AutoPostX" AutoPostX.exe "$(TargetDir)$(TargetFileName)"
-copy "$(TargetDir)$(TargetFileName)" "C:\Program Files (x86)\Steam\steamapps\common\NeosVR\nml_mods"
-copy "$(ProjectDir)Python\bake.py" "C:\Program Files (x86)\Steam\steamapps\common\NeosVR\nml_mods\_NeosBakery"</PostBuildEvent>
+    <PostBuildEvent>copy "$(TargetDir)\$(TargetFileName)" "$(ResonitePath)\rml_mods\"</PostBuildEvent>
   </PropertyGroup>
 </Project>
