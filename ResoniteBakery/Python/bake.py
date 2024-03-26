@@ -115,7 +115,7 @@ for Light in bakeJob["BakeLights"]:
 
     light_ob.rotation_quaternion.w = -Light["Transform"]["Rotation"][3]
     light_ob.rotation_quaternion.x = Light["Transform"]["Rotation"][0]
-    light_ob.rotation_quaternion.z = -Light["Transform"]["Rotation"][1]
+    light_ob.rotation_quaternion.z = Light["Transform"]["Rotation"][1]
     light_ob.rotation_quaternion.y = Light["Transform"]["Rotation"][2]
 
     light_ob.scale.x = Light["Transform"]["Scale"][0]
@@ -152,7 +152,7 @@ for bakeObject in bakeJob["BakeObjects"]:
     meshObj.rotation_mode = "QUATERNION"
     meshObj.rotation_quaternion.w = -bakeObject["Transform"]["Rotation"][3]
     meshObj.rotation_quaternion.x = bakeObject["Transform"]["Rotation"][0]
-    meshObj.rotation_quaternion.y = -bakeObject["Transform"]["Rotation"][1]
+    meshObj.rotation_quaternion.y = bakeObject["Transform"]["Rotation"][1]
     meshObj.rotation_quaternion.z = bakeObject["Transform"]["Rotation"][2]
 
     meshObj.scale.x = bakeObject["Transform"]["Scale"][0]

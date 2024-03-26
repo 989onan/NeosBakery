@@ -227,6 +227,10 @@ namespace ResoniteBakery.Core
             {
                 KeepBake(null, default);
             }
+            else if(LightBaker.IsBusy)
+            {
+                Cancel(null, default);
+            }
 
             _Wizard = null;
         }

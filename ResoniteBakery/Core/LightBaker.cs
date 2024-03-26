@@ -141,10 +141,14 @@ namespace ResoniteBakery.Core
                     {
                         continue;
                     }
-                    if (renderer.Slot.Tag.ToLower().Contains("<nobake>"))
+                    try
                     {
-                        continue;
+                        if (renderer.Slot.Tag.ToLower().Contains("<nobake>"))
+                        {
+                            continue;
+                        }
                     }
+                    catch(Exception){/*I do not care that it is null lol*/}
 
                     int meshUriHash = await CacheMesh(renderer);
                     if (meshUriHash == -1)
@@ -230,6 +234,8 @@ namespace ResoniteBakery.Core
             catch(Exception ex)
             {
                 RaiseOnBakeInfo(ex.StackTrace);
+                IsBusy = false;
+                IsFinalized = true;
             }
             return false;
         }
