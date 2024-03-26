@@ -175,9 +175,13 @@ namespace ResoniteBakery.Core
                         int cachedMaterial = CacheMaterial(material, cachedTextures);
                         materials.Add(cachedMaterial);
                     }
-
-                    bakeObjectDefinitions.Add(new BakeObjectDefinition(new TransformDefinition(renderer.Slot), new RendererDefinition(meshUriHash, materials.ToArray()), renderer.ReferenceID));
-                    ID_Renderer.Add(renderer.ReferenceID.Position, renderer);
+                    try
+                    {
+                        bakeObjectDefinitions.Add(new BakeObjectDefinition(new TransformDefinition(renderer.Slot), new RendererDefinition(meshUriHash, materials.ToArray()), renderer.ReferenceID));
+                        ID_Renderer.Add(renderer.ReferenceID.Position, renderer);
+                    }
+                    catch(Exception e ) {/*tried to add duplicates, ignore.*/}
+                    
                 }
                 RaiseOnBakeInfo("Gathered (" + renderers.Count.ToString() + ") total renderers!");
 
@@ -233,7 +237,7 @@ namespace ResoniteBakery.Core
             }
             catch(Exception ex)
             {
-                RaiseOnBakeInfo(ex.StackTrace);
+                RaiseOnBakeInfo(ex.Message+ex.StackTrace);
                 IsBusy = false;
                 IsFinalized = true;
             }
