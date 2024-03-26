@@ -113,7 +113,7 @@ for Light in bakeJob["BakeLights"]:
     light_ob.location.z = Light["Transform"]["Position"][1]
     light_ob.location.y = Light["Transform"]["Position"][2]
 
-    light_ob.rotation_quaternion.w = Light["Transform"]["Rotation"][3]
+    light_ob.rotation_quaternion.w = -Light["Transform"]["Rotation"][3]
     light_ob.rotation_quaternion.x = Light["Transform"]["Rotation"][0]
     light_ob.rotation_quaternion.z = -Light["Transform"]["Rotation"][1]
     light_ob.rotation_quaternion.y = Light["Transform"]["Rotation"][2]
@@ -130,10 +130,14 @@ bakedTextures_RendererIndex = []
 for bakeObject in bakeJob["BakeObjects"]:
     meshPath = MeshesPath + str(bakeObject["Renderer"]["Mesh"]) + ".gltf"
     bpy.ops.import_scene.gltf(filepath=meshPath, import_pack_images=False)
-    meshObj = bpy.context.selected_objects[0]
+    meshObj: bpy.types.Object = bpy.context.selected_objects[0]
     bpy.ops.object.select_all(action="DESELECT")
     meshObj.select_set(True)
+    if meshObj.type != "MESH":
+        continue
     objectsToBake.append(meshObj)
+
+    
         
     if bakeJob["BakeMethod"] == 0:
         bpy.ops.object.editmode_toggle()
@@ -146,10 +150,10 @@ for bakeObject in bakeJob["BakeObjects"]:
     meshObj.location.y = bakeObject["Transform"]["Position"][2]
 
     meshObj.rotation_mode = "QUATERNION"
-    meshObj.rotation_quaternion.w = bakeObject["Transform"]["Rotation"][3]
+    meshObj.rotation_quaternion.w = -bakeObject["Transform"]["Rotation"][3]
     meshObj.rotation_quaternion.x = bakeObject["Transform"]["Rotation"][0]
-    meshObj.rotation_quaternion.z = -bakeObject["Transform"]["Rotation"][1]
-    meshObj.rotation_quaternion.y = bakeObject["Transform"]["Rotation"][2]
+    meshObj.rotation_quaternion.y = -bakeObject["Transform"]["Rotation"][1]
+    meshObj.rotation_quaternion.z = bakeObject["Transform"]["Rotation"][2]
 
     meshObj.scale.x = bakeObject["Transform"]["Scale"][0]
     meshObj.scale.z = bakeObject["Transform"]["Scale"][1]
@@ -166,7 +170,7 @@ for bakeObject in bakeJob["BakeObjects"]:
         nodes = currentMaterial.node_tree.nodes
         bsdfNode = nodes.new(type="ShaderNodeBsdfPrincipled")
         nodetree.links.new(bsdfNode.outputs["BSDF"], nodes["Material Output"].inputs["Surface"])
-        inputs = bsdfNode.inputs
+        inputs: bpy.types.NodeInputs = bsdfNode.inputs
         inputs["Base Color"].default_value[0] = _material["AlbedoColor"][0]
         inputs["Base Color"].default_value[1] = _material["AlbedoColor"][1]
         inputs["Base Color"].default_value[2] = _material["AlbedoColor"][2]
@@ -286,6 +290,7 @@ for bakeObject in bakeJob["BakeObjects"]:
         for node in nodes:
             node.select = False
         bakeNode.select = True
+        nodes.active = bakeNode
         materialIndex = materialIndex + 1
 
 bo = 0
@@ -303,7 +308,7 @@ for bakedObject in objectsToBake:
         #selectedObject.rotation_euler[2] = selectedObject.rotation_euler[2] + pi/2
         #selectedObject.rotation_mode = "QUATERNION"
         #bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
-        bpy.ops.export_scene.gltf(filepath=savepath + "\\Mesh.glb", check_existing=False, export_selected=True)
+        bpy.ops.export_scene.gltf(filepath=savepath + "\\Mesh.glb", check_existing=False, use_selection=True)
     bo = bo + 1
 
 bn = 0
@@ -314,4 +319,4 @@ for bakedNode in bakeNodes:
     bakedNode.image.save_render(filepath=savepath + "\\Albedo.png")
     bn = bn + 1
 
-bpy.ops.wm.quit_blender()
+#bpy.ops.wm.quit_blender()

@@ -16,17 +16,17 @@ namespace ResoniteBakery.Core
 {
     class LightBakerWizard
     {
-        public static LightBakerWizard GetOrCreateWizard()
+        public static LightBakerWizard GetOrCreateWizard(Slot s)
         {
             if (_Wizard != null)
             {
-                WizardSlot.PositionInFrontOfUser(float3.Backward, distance: 1f);
-                return _Wizard;
+                if (WizardSlot != null)
+                {
+                    WizardSlot.PositionInFrontOfUser(float3.Backward, distance: 1f);
+                    return _Wizard;
+                }
             }
-            else
-            {
-                return new LightBakerWizard();
-            }
+            return new LightBakerWizard(s);
         }
         static LightBakerWizard _Wizard;
         static Slot WizardSlot;
@@ -41,7 +41,6 @@ namespace ResoniteBakery.Core
         readonly ValueMultiplexer<string> _bakeTypeMultiplexer;
         readonly ValueField<ReflectionProbe.Clear> _bakeMethod;
         readonly ValueMultiplexer<string> _bakeMethodMultiplexer;
-        readonly TextField blenderPathField;
 
         readonly Button bakeButton;
         readonly Button cancelButton;
@@ -52,8 +51,6 @@ namespace ResoniteBakery.Core
         readonly Button discardBakeButton;
         readonly Button keepBakeButton;
         readonly Button rebakeButton;
-
-        readonly Button saveSettingsButton;
         readonly Button clearCacheButton;
 
         readonly Text statusText;
@@ -62,11 +59,11 @@ namespace ResoniteBakery.Core
             statusText.Content.Value = info;
         }
 
-        protected LightBakerWizard()
+        protected LightBakerWizard(Slot s)
         {
             _Wizard = this;
 
-            WizardSlot = Engine.Current.WorldManager.FocusedWorld.RootSlot.AddSlot("Light Baker Wizard");
+            WizardSlot = s;
 
             BakeSettings bakeSettings = default;
             if (File.Exists(BakeSettingsPath))
@@ -89,7 +86,7 @@ namespace ResoniteBakery.Core
             ui.VerticalLayout(4f);
             ui.Style.MinHeight = 24f;
             ui.Style.PreferredHeight = 24f;
-            UIBuilder canvasPanel = ui;
+            UIBuilder UI = ui;
 
 
             Slot Data = WizardSlot.AddSlot("Data");
@@ -102,7 +99,7 @@ namespace ResoniteBakery.Core
             _bakeType = Data.AddSlot("bakeType").AttachComponent<ValueField<LightType>>();
             _bakeMethod = Data.AddSlot("bakeMethod").AttachComponent<ValueField<ReflectionProbe.Clear>>();
 
-            UIBuilder UI = new UIBuilder(canvasPanel.Canvas);
+            
             UI.Canvas.MarkDeveloper();
             UI.Canvas.AcceptPhysicalTouch.Value = false;
             VerticalLayout verticalLayout = UI.VerticalLayout(4f, childAlignment: Alignment.TopCenter);
@@ -110,7 +107,7 @@ namespace ResoniteBakery.Core
             UI.Style.MinHeight = 24f; ;
             UI.Style.PreferredHeight = 24f;
 
-            UI.Text("<b>Developed by Toxic_Cookie with love! <3</b>");
+            UI.Text("<b>Developed by Toxic_Cookie and 989onan with love! <3</b>");
             UI.Text("Mesh Root:").HorizontalAlign.Value = TextHorizontalAlignment.Left;
             UI.Next("Root");
             UI.Current.AttachComponent<RefEditor>().Setup(meshRoot.Reference);
@@ -143,8 +140,6 @@ namespace ResoniteBakery.Core
             _bakeMethod.Value.OnValueChange += _bakeMethod_OnValueChange;
             _bakeMethod.Value.Value = (ReflectionProbe.Clear)(int)bakeSettings.BakeMethod;
 
-            UI.Text("Blender Path:").HorizontalAlign.Value = TextHorizontalAlignment.Left;
-            blenderPathField = UI.TextField(BlenderPath);
 
             UI.HorizontalLayout(4f);
             bakeButton = UI.Button("Bake");
@@ -179,9 +174,6 @@ namespace ResoniteBakery.Core
             rebakeButton.LocalPressed += Rebake;
             rebakeButton.EnabledField.Value = false;
             UI.NestOut();
-
-            saveSettingsButton = UI.Button("Save Settings");
-            saveSettingsButton.LocalPressed += SaveSettings;
 
             clearCacheButton = UI.Button("Clear Cache");
             clearCacheButton.LocalPressed += ClearCache;
@@ -241,10 +233,11 @@ namespace ResoniteBakery.Core
 
         void Bake(IButton button, ButtonEventData eventData)
         {
+            
             Engine.Current.WorldManager.FocusedWorld.Coroutines.StartTask(async () =>
             {
                 UpdateAllButtonStates(PressedButton.Bake, StateType.Initial);
-                bool result = await LightBaker.Bake(meshRoot.Reference.Target, lightRoot.Reference.Target, blenderPathField.Text.Content.Value, defaultResolution.Value, upscale.Value, (BakeType)(int)_bakeType.Value.Value, (BakeMethod)(int)_bakeMethod.Value.Value, cancellationTokenSource.Token);
+                bool result = await LightBaker.Bake(meshRoot.Reference.Target, lightRoot.Reference.Target, "", defaultResolution.Value, upscale.Value, (BakeType)(int)_bakeType.Value.Value, (BakeMethod)(int)_bakeMethod.Value.Value, cancellationTokenSource.Token);
                 if (result)
                 {
                     UpdateAllButtonStates(PressedButton.Bake, StateType.Completed);
@@ -293,13 +286,6 @@ namespace ResoniteBakery.Core
         {
             DiscardBake(null, default);
             Bake(null, default);
-        }
-
-        void SaveSettings(IButton button, ButtonEventData eventData)
-        {
-            File.WriteAllText(BakeSettingsPath, JsonConvert.SerializeObject(new BakeSettings(upscale.Value, defaultResolution.Value, (BakeType)(int)_bakeType.Value.Value, (BakeMethod)(int)_bakeMethod.Value.Value), Formatting.Indented));
-            SetBlenderPath(blenderPathField.Text.Content.Value);
-            UpdateStatusText("Settings succesfully saved!");
         }
         void ClearCache(IButton button, ButtonEventData eventData)
         {

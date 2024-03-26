@@ -10,6 +10,7 @@ using Elements.Core;
 using FrooxEngine;
 using Newtonsoft.Json;
 
+using ResoniteBakery;
 using static ResoniteBakery.Core.Paths;
 using static ResoniteBakery.Core.Defs;
 
@@ -67,153 +68,170 @@ namespace ResoniteBakery.Core
         /// <returns>True if the bake was successful.</returns>
         public static async Task<bool> Bake(Slot meshRoot, Slot lightRoot, string blenderPath = null, int defaultResolution = 1024, bool upscale = true, BakeType bakeType = BakeType.DirectAndIndirect, BakeMethod bakeMethod = BakeMethod.SeparateAlbedo, CancellationToken token = default)
         {
-            if (IsBusy)
+            try
             {
-                RaiseOnBakeInfo("Already busy baking! Cannot start bake job!");
-                return false;
-            }
-            if (!IsFinalized)
-            {
-                RaiseOnBakeInfo("Previous bake job not finalized! Cannot start bake job!");
-                return false;
-            }
-            if (meshRoot == null)
-            {
-                RaiseOnBakeInfo("Mesh root is null! Cannot start bake job!");
-                return false;
-            }
-            if (lightRoot == null)
-            {
-                RaiseOnBakeInfo("Light root is null! Cannot start bake job!");
-                return false;
-            }
-            if (blenderPath == null)
-            {
-                blenderPath = BlenderPath;
-            }
-            if (!File.Exists(blenderPath))
-            {
-                RaiseOnBakeInfo("Couldn't find blender at specified path! Cannot start bake job!");
-                return false;
-            }
-
-            IsBusy = true;
-            IsFinalized = false;
-
-            RaiseOnBakeInfo("Beginning bake job!");
-            RaiseOnBakeStarted();
-
-            RaiseOnBakeInfo("Ensuring paths exist...");
-            EnsureAllPathsExist();
-            RegeneratePath(OutputPath);
-
-            meshMultiplexers.Clear();
-            materialMultiplexers.Clear();
-
-            renderers.Clear();
-            rendererRotations.Clear();
-
-            RaiseOnBakeInfo("Gathering renderers...");
-            renderers.AddRange(meshRoot.GetComponentsInChildren<MeshRenderer>());
-            if (renderers.Count == 0)
-            {
-                IsBusy = false;
-                IsFinalized = true;
-                RaiseOnBakeInfo("Nothing to bake! Bake job cancelled.");
-                return false;
-            }
-            Dictionary<ulong, MeshRenderer> ID_Renderer = new Dictionary<ulong, MeshRenderer>();
-            List<BakeObjectDefinition> bakeObjectDefinitions = new List<BakeObjectDefinition>();
-            foreach (MeshRenderer renderer in renderers)
-            {
-                RaiseOnBakeInfo("Evaluating renderer on slot: " + renderer.Slot.NameField.Value);
-                if (token.IsCancellationRequested)
+                if (IsBusy)
                 {
-                    PreCancelBake();
+                    RaiseOnBakeInfo("Already busy baking! Cannot start bake job!");
+                    return false;
+                }
+                if (!IsFinalized)
+                {
+                    RaiseOnBakeInfo("Previous bake job not finalized! Cannot start bake job!");
+                    return false;
+                }
+                if (meshRoot == null)
+                {
+                    RaiseOnBakeInfo("Mesh root is null! Cannot start bake job!");
+                    return false;
+                }
+                if (lightRoot == null)
+                {
+                    RaiseOnBakeInfo("Light root is null! Cannot start bake job!");
+                    return false;
+                }
+                blenderPath = Bakery.Config.GetValue(Bakery.blenderpath);
+                if (!File.Exists(blenderPath))
+                {
+
+                    RaiseOnBakeInfo("Couldn't find blender at specified path! Cannot start bake job! Path: " + blenderPath);
                     return false;
                 }
 
-                RaiseOnBakeInfo("Evaluating mesh on slot: " + renderer.Slot.NameField.Value);
-                int meshUriHash = await CacheMesh(renderer);
-                if (meshUriHash == -1)
-                {
-                    continue;
-                }
+                IsBusy = true;
+                IsFinalized = false;
 
-                List<int> materials = new List<int>();
-                for (int m = 0; m < renderer.Materials.Count; m++)
+                RaiseOnBakeInfo("Beginning bake job!");
+                RaiseOnBakeStarted();
+
+                RaiseOnBakeInfo("Ensuring output path exists...");
+                RegeneratePath(OutputPath);
+
+                meshMultiplexers.Clear();
+                materialMultiplexers.Clear();
+
+                renderers.Clear();
+                rendererRotations.Clear();
+
+                RaiseOnBakeInfo("Gathering renderers...");
+                renderers.AddRange(meshRoot.GetComponentsInChildren<MeshRenderer>());
+                if (renderers.Count == 0)
                 {
-                    RaiseOnBakeInfo("Evaluating material: " + (m + 1).ToString() + " of " + renderer.Materials.Count.ToString());
+                    IsBusy = false;
+                    IsFinalized = true;
+                    RaiseOnBakeInfo("Nothing to bake! Bake job cancelled.");
+                    return false;
+                }
+                Dictionary<ulong, MeshRenderer> ID_Renderer = new Dictionary<ulong, MeshRenderer>();
+                List<BakeObjectDefinition> bakeObjectDefinitions = new List<BakeObjectDefinition>();
+                foreach (MeshRenderer renderer in renderers)
+                {
+                    RaiseOnBakeInfo("Evaluating renderer on slot: " + renderer.Slot.NameField.Value);
                     if (token.IsCancellationRequested)
                     {
                         PreCancelBake();
                         return false;
                     }
-
-                    if (!(renderer.Materials[m] is PBS_Material material))
+                    RaiseOnBakeInfo("Evaluating mesh on slot: " + renderer.Slot.NameField.Value);
+                    if (!renderer.Enabled)
+                    {
+                        continue;
+                    }
+                    if (!renderer.Slot.ActiveSelf)
+                    {
+                        continue;
+                    }
+                    if (renderer.Slot.Tag.ToLower().Contains("<nobake>"))
                     {
                         continue;
                     }
 
-                    int[] cachedTextures = await CacheTextures(material);
-                    int cachedMaterial = CacheMaterial(material, cachedTextures);
-                    materials.Add(cachedMaterial);
+                    int meshUriHash = await CacheMesh(renderer);
+                    if (meshUriHash == -1)
+                    {
+                        continue;
+                    }
+
+                    List<int> materials = new List<int>();
+                    for (int m = 0; m < renderer.Materials.Count; m++)
+                    {
+                        RaiseOnBakeInfo("Evaluating material: " + (m + 1).ToString() + " of " + renderer.Materials.Count.ToString());
+                        if (token.IsCancellationRequested)
+                        {
+                            PreCancelBake();
+                            return false;
+                        }
+
+                        if (!(renderer.Materials[m] is PBS_Material material))
+                        {
+                            continue;
+                        }
+
+                        int[] cachedTextures = await CacheTextures(material);
+                        int cachedMaterial = CacheMaterial(material, cachedTextures);
+                        materials.Add(cachedMaterial);
+                    }
+
+                    bakeObjectDefinitions.Add(new BakeObjectDefinition(new TransformDefinition(renderer.Slot), new RendererDefinition(meshUriHash, materials.ToArray()), renderer.ReferenceID));
+                    ID_Renderer.Add(renderer.ReferenceID.Position, renderer);
+                }
+                RaiseOnBakeInfo("Gathered (" + renderers.Count.ToString() + ") total renderers!");
+
+                RaiseOnBakeInfo("Gathering lights...");
+                List<Light> lights = lightRoot.GetComponentsInChildren<Light>();
+                LightDefinition[] lightDefinitions = new LightDefinition[lights.Count];
+                for (int i = 0; i < lightDefinitions.Length; i++)
+                {
+                    RaiseOnBakeInfo("Evaluating light on slot: " + lights[i].Slot.NameField.Value);
+                    lightDefinitions[i] = new LightDefinition(lights[i]);
+                }
+                RaiseOnBakeInfo("Gathered (" + lights.Count.ToString() + ") total lights!");
+
+                RaiseOnBakeInfo("Evaluating Skybox...");
+                int cachedSkybox;
+                if (!(Engine.Current.WorldManager.FocusedWorld.KeyOwner(Skybox.ACTIVE_SKYBOX_KEY) is Skybox skybox))
+                {
+                    skybox = Engine.Current.WorldManager.FocusedWorld.RootSlot.GetComponentInChildren<Skybox>();
+                    cachedSkybox = await CacheSkybox(skybox);
+                }
+                else
+                {
+                    cachedSkybox = await CacheSkybox(skybox);
+                }
+                RaiseOnBakeInfo("Generating bake job...");
+                BakeJob bakeJob = new BakeJob(bakeObjectDefinitions.ToArray(), lightDefinitions, new SkyboxDefinition(skybox, cachedSkybox), upscale, defaultResolution, bakeType, bakeMethod);
+                File.WriteAllText(BakeJobPath, JsonConvert.SerializeObject(bakeJob, Formatting.Indented));
+                RaiseOnBakeInfo("Generated bake job!");
+
+                RaiseOnBakeInfo("Baking...");
+                Process Blender = Process.Start(blenderPath, "-con -P " + '"' + BakePyPath + '"');
+                CancellationTokenRegistration unregisterKill = token.Register(Blender.Kill);
+                CancellationTokenRegistration unregisterCancel = token.Register(PreCancelBake);
+                await Blender.WaitForExitAsync(token);
+                unregisterKill.Dispose();
+                unregisterCancel.Dispose();
+                RaiseOnBakeInfo("Bake finished! Beginning automatic import and assignment...");
+
+                await ImportAndAssignAssets(ID_Renderer, bakeMethod, token);
+                if (token.IsCancellationRequested)
+                {
+                    IsBusy = false;
+                    RaiseOnBakeInfo("Bake job cancelled.");
+                    FinalizeChanges(ChangesType.Discard);
+                    RaiseOnBakeCancelled();
+                    return false;
                 }
 
-                bakeObjectDefinitions.Add(new BakeObjectDefinition(new TransformDefinition(renderer.Slot), new RendererDefinition(meshUriHash, materials.ToArray()), renderer.ReferenceID));
-                ID_Renderer.Add(renderer.ReferenceID.Position, renderer);
-            }
-            RaiseOnBakeInfo("Gathered (" + renderers.Count.ToString() + ") total renderers!");
-
-            RaiseOnBakeInfo("Gathering lights...");
-            List<Light> lights = lightRoot.GetComponentsInChildren<Light>();
-            LightDefinition[] lightDefinitions = new LightDefinition[lights.Count];
-            for (int i = 0; i < lightDefinitions.Length; i++)
-            {
-                RaiseOnBakeInfo("Evaluating light on slot: " + lights[i].Slot.NameField.Value);
-                lightDefinitions[i] = new LightDefinition(lights[i]);
-            }
-            RaiseOnBakeInfo("Gathered (" + lights.Count.ToString() + ") total lights!");
-
-            RaiseOnBakeInfo("Evaluating Skybox...");
-            int cachedSkybox;
-            if (!(Engine.Current.WorldManager.FocusedWorld.KeyOwner(Skybox.ACTIVE_SKYBOX_KEY) is Skybox skybox))
-            {
-                skybox = Engine.Current.WorldManager.FocusedWorld.RootSlot.GetComponentInChildren<Skybox>();
-                cachedSkybox = await CacheSkybox(skybox);
-            }
-            else
-            {
-                cachedSkybox = await CacheSkybox(skybox);
-            }
-            RaiseOnBakeInfo("Generating bake job...");
-            BakeJob bakeJob = new BakeJob(bakeObjectDefinitions.ToArray(), lightDefinitions, new SkyboxDefinition(skybox, cachedSkybox), upscale, defaultResolution, bakeType, bakeMethod);
-            File.WriteAllText(BakeJobPath, JsonConvert.SerializeObject(bakeJob, Formatting.Indented));
-            RaiseOnBakeInfo("Generated bake job!");
-
-            RaiseOnBakeInfo("Baking...");
-            Process Blender = Process.Start(blenderPath, "-con -P " + '"' + BakePyPath + '"');
-            CancellationTokenRegistration unregisterKill = token.Register(Blender.Kill);
-            CancellationTokenRegistration unregisterCancel = token.Register(PreCancelBake);
-            await Blender.WaitForExitAsync(token);
-            unregisterKill.Dispose();
-            unregisterCancel.Dispose();
-            RaiseOnBakeInfo("Bake finished! Beginning automatic import and assignment...");
-
-            await ImportAndAssignAssets(ID_Renderer, bakeMethod, token);
-            if (token.IsCancellationRequested)
-            {
                 IsBusy = false;
-                RaiseOnBakeInfo("Bake job cancelled.");
-                FinalizeChanges(ChangesType.Discard);
-                RaiseOnBakeCancelled();
-                return false;
+                RaiseOnBakeInfo("Bake job complete!");
+                RaiseOnBakeCompleted();
+                return true;
             }
-
-            IsBusy = false;
-            RaiseOnBakeInfo("Bake job complete!");
-            RaiseOnBakeCompleted();
-            return true;
+            catch(Exception ex)
+            {
+                RaiseOnBakeInfo(ex.StackTrace);
+            }
+            return false;
         }
         /// <summary>Gets called before the bake is fully cancelled.</summary>
         static void PreCancelBake()

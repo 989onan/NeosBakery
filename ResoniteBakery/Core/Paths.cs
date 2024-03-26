@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
-
+using System.Linq;
+using System.Reflection;
+using System.Resources;
 using Newtonsoft.Json;
 
 namespace ResoniteBakery.Core
@@ -17,48 +19,27 @@ namespace ResoniteBakery.Core
         public static readonly string BakeJobPath = AppDomain.CurrentDomain.BaseDirectory + @"\\rml_mods\\_ResoniteBakery\\BakeJob.json";
         public static readonly string BakePyPath = AppDomain.CurrentDomain.BaseDirectory + @"\\rml_mods\\_ResoniteBakery\\bake.py";
 
-        public static string BlenderPath { get; private set; } = @"C:\\Program Files\\Blender Foundation\\Blender 3.0\\blender.exe";
-        public static void SetBlenderPath(string newPath)
-        {
-            BlenderPath = newPath;
-            File.WriteAllText(ConfigPath, JsonConvert.SerializeObject(new Config(newPath), Formatting.Indented));
-        }
         public static readonly string BakeSettingsPath = AppDomain.CurrentDomain.BaseDirectory + @"\\rml_mods\\_ResoniteBakery\\BakeSettings.json";
-        public static readonly string ConfigPath = AppDomain.CurrentDomain.BaseDirectory + @"\\rml_mods\\_ResoniteBakery\\Config.json";
 
         static Paths()
         {
-            if (File.Exists(ConfigPath))
-            {
-                BlenderPath = JsonConvert.DeserializeObject<Config>(File.ReadAllText(ConfigPath)).BlenderPath;
-            }
-            else
-            {
-                File.WriteAllText(ConfigPath, JsonConvert.SerializeObject(new Config(@"C:\\Program Files\\Blender Foundation\\Blender 3.0\\blender.exe"), Formatting.Indented));
-            }
         }
 
         public static void EnsureAllPathsExist()
         {
-            if (!Directory.Exists(AssetsPath))
-            {
-                Directory.CreateDirectory(AssetsPath);
+            foreach(string directory in new string[]{ AssetsPath, OutputPath, MeshesPath, MaterialsPath, TexturesPath}){
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
             }
-            if (!Directory.Exists(OutputPath))
+            foreach(string filename in new string[] { BakePyPath})
             {
-                Directory.CreateDirectory(OutputPath);
-            }
-            if (!Directory.Exists(MeshesPath))
-            {
-                Directory.CreateDirectory(MeshesPath);
-            }
-            if (!Directory.Exists(TexturesPath))
-            {
-                Directory.CreateDirectory(TexturesPath);
-            }
-            if (!Directory.Exists(MaterialsPath))
-            {
-                Directory.CreateDirectory(MaterialsPath);
+                //https://stackoverflow.com/a/32009301
+                //this generates the files as resources that we have like our python file into real files on the disk to use when doing blender baking.
+                Directory.CreateDirectory(Path.GetDirectoryName(filename));
+                File.WriteAllText(filename, System.Text.Encoding.Default.GetString(Properties.Resources.bake));
+                
             }
         }
         public static void RegeneratePath(string path)
@@ -67,14 +48,5 @@ namespace ResoniteBakery.Core
             Directory.CreateDirectory(path);
         }
 
-        struct Config
-        {
-            public string BlenderPath;
-
-            public Config(string blenderPath)
-            {
-                BlenderPath = blenderPath;
-            }
-        }
     }
 }
