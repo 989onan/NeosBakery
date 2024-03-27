@@ -64,7 +64,7 @@ namespace ResoniteBakery.Core
         /// <summary>The list of temporary renderer roations used for previewing and finalizing changes.</summary>
         static readonly Dictionary<MeshRenderer, RotationDefinition> rendererRotations = new Dictionary<MeshRenderer, RotationDefinition>();
 
-        static Slot lightRoot = null;
+        static Slot lightRoot_s = null;
         /// <summary>Bakes lighting in a given scene of models and lights.</summary>
         /// <returns>True if the bake was successful.</returns>
         public static async Task<bool> Bake(Slot meshRoot, Slot lightRoot, string blenderPath = null, int defaultResolution = 1024, bool upscale = true, BakeType bakeType = BakeType.DirectAndIndirect, BakeMethod bakeMethod = BakeMethod.SeparateAlbedo, CancellationToken token = default)
@@ -98,6 +98,7 @@ namespace ResoniteBakery.Core
                     RaiseOnBakeInfo("Couldn't find blender at specified path! Cannot start bake job! Path: " + blenderPath);
                     return false;
                 }
+                lightRoot_s = lightRoot;
 
                 IsBusy = true;
                 IsFinalized = false;
@@ -196,15 +197,11 @@ namespace ResoniteBakery.Core
                 RaiseOnBakeInfo("Gathered (" + renderers.Count.ToString() + ") total renderers!");
 
                 RaiseOnBakeInfo("Gathering lights...");
-                List<Light> lights = lightRoot.GetComponentsInChildren<Light>();
+                List<Light> lights = lightRoot.GetComponentsInChildren<Light>((Light l) => l.Slot.IsActive); //filter inactive lights
                 LightDefinition[] lightDefinitions = new LightDefinition[lights.Count];
                 for (int i = 0; i < lightDefinitions.Length; i++)
                 {
                     RaiseOnBakeInfo("Evaluating light on slot: " + lights[i].Slot.NameField.Value);
-                    if (!lights[i].Slot.IsActive)
-                    {
-                        continue;
-                    }
                     lightDefinitions[i] = new LightDefinition(lights[i]);
                 }
                 RaiseOnBakeInfo("Gathered (" + lights.Count.ToString() + ") total lights!");
@@ -870,7 +867,7 @@ namespace ResoniteBakery.Core
             }
             try
             {
-                lightRoot.ActiveSelf = viewMode == ViewType.Realtime ? true : false;
+                lightRoot_s.ActiveSelf = viewMode == ViewType.Realtime;
             }
             catch (Exception) {/*idc*/ }
             foreach (MeshRenderer renderer in renderers)

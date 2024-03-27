@@ -7,9 +7,9 @@ from math import pi
 ResoniteBakeryPath = __file__.replace("bake.py", "")
 ResoniteBakeryOutputPath = ResoniteBakeryPath + "Output\\"
 
-MeshesPath = ResoniteBakeryPath + "Assets\\Meshes\\";
-MaterialsPath = ResoniteBakeryPath + "Assets\\Materials\\";
-TexturesPath = ResoniteBakeryPath + "Assets\\Textures\\";
+MeshesPath = ResoniteBakeryPath + "Assets\\Meshes\\"
+MaterialsPath = ResoniteBakeryPath + "Assets\\Materials\\"
+TexturesPath = ResoniteBakeryPath + "Assets\\Textures\\"
 
 bakeJob = json.load(open(ResoniteBakeryPath + "BakeJob.json"))
 
@@ -46,6 +46,9 @@ bpy.ops.object.delete()
 _scene.render.engine = "CYCLES"
 _scene.cycles.device = "GPU"
 _scene.cycles.feature_set = "EXPERIMENTAL"
+bpy.context.scene.render.bake.margin_type = 'EXTEND'
+bpy.context.scene.render.bake.margin = 8
+
 
 if bakeJob["BakeMethod"] == 1:
     bpy.context.scene.use_nodes = True
@@ -68,7 +71,7 @@ def exportTiledTexture(inputMap, outputDirectory, x_tiling, y_tiling, x_offset, 
     #tiledTexture.repeat_y = round(y_tiling)
     tiledTextureNode.inputs[0].default_value[0] = x_offset
     tiledTextureNode.inputs[0].default_value[1] = y_offset
-    #I cannot find a solution to make the texture scale from the bottom left instead of the center. Whole number tiling it is.
+    #I cannot find a solution to make the texture scale from the bottom left instead of the center. Whole number tiling it is.  - @Toxic_Cookie
     #https://blender.stackexchange.com/questions/250664/how-to-properly-scale-a-texture-from-the-bottom-left-in-the-compositor
     tiledTextureNode.inputs[1].default_value[0] = round(x_tiling)
     tiledTextureNode.inputs[1].default_value[1] = round(y_tiling)
@@ -81,9 +84,9 @@ def exportTiledTexture(inputMap, outputDirectory, x_tiling, y_tiling, x_offset, 
     bpy.context.scene.render.resolution_x = x_resolution
     bpy.context.scene.render.resolution_y = y_resolution
     bpy.ops.render.render(write_still=True)
-    filename = os.listdir(outputDirectory)[0] #Get first file and name
-    filepath = outputDirectory + filename #Combine 0\\Normal\\ + Image0001.png
-    targetpath = os.path.dirname(outputDirectory) + os.path.basename(outputDirectory) + ".png" #Combine 0\\ + Normal + .png
+    filename = os.listdir(outputDirectory)[0] #Get first file and name  - @Toxic_Cookie
+    filepath = outputDirectory + filename #Combine 0\\Normal\\ + Image0001.png  - @Toxic_Cookie
+    targetpath = os.path.dirname(outputDirectory) + os.path.basename(outputDirectory) + ".png" #Combine 0\\ + Normal + .png  - @Toxic_Cookie
     shutil.move(filepath, targetpath)
     os.rmdir(outputDirectory)
     return
@@ -126,8 +129,9 @@ for Light in bakeJob["BakeLights"]:
     light_ob.scale.z = Light["Transform"]["Scale"][1]
     light_ob.scale.y = Light["Transform"]["Scale"][2]
 
-objectsToBake = []
-bakeNodes = []
+objectsToBake: list[bpy.types.Object] = []
+bakeNodes: list[bpy.types.ShaderNode] = []
+bakeNodetrees: list[bpy.types.NodeTree] = []
 bakedTextures_MaterialIndex = []
 bakedTextures_RendererIndex = []
 
@@ -150,8 +154,15 @@ for bakeObject in bakeJob["BakeObjects"]:
             bpy.ops.mesh.uv_texture_remove()
         bpy.ops.object.editmode_toggle()
         size = clamp(bakeJob["DefaultResolution"], 64, 4096)
-        bpy.ops.uv.lightmap_pack(PREF_CONTEXT="ALL_FACES", PREF_PACK_IN_ONE=True, PREF_NEW_UVLAYER=True, PREF_IMG_PX_SIZE=size, PREF_BOX_DIV=48, PREF_MARGIN_DIV=0.02)
+        bpy.ops.mesh.uv_texture_add()   
+        meshdata.uv_layers.active_index = 0 #the active being 0 but the render being 1 is important here. - @989onan
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.uv.select_all(action='SELECT')
+
+        bpy.ops.uv.pack_islands(margin=0.01)
+        meshdata.uv_layers[1].active_render = True #the active being 0 but the render being 1 is important here. - @989onan
         bpy.ops.object.editmode_toggle()
+        print("changed uvs.")
 
 
     meshObj.location.x = bakeObject["Transform"]["Position"][0]
@@ -191,7 +202,7 @@ for bakeObject in bakeJob["BakeObjects"]:
 
         bakeNode = nodes.new(type="ShaderNodeTexImage")
         bakeNode.label = "BakeTexture"
-        textureName = str(bakeObject["REFID"]) + "_" + str(materialIndex) + "_Albedo"
+        textureName = str(bakeObject["REFID"]) + "_" + str(materialIndex) + "_Emissive"
         if _material["Textures"][0] == -1:
             if bakeJob["Upscale"] == True:
                 x_res = round(clamp(bakeJob["DefaultResolution"] * _material["TextureScale"][0], 64, 4096))
@@ -210,89 +221,100 @@ for bakeObject in bakeJob["BakeObjects"]:
                 texturePath = TexturesPath + str(_material["Textures"][0]) + ".png"
                 bakeNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True).copy()
         bakeNodes.append(bakeNode)
+        bakeNodetrees.append(nodetree)
         bakedTextures_MaterialIndex.append(materialIndex)
         bakedTextures_RendererIndex.append(bakeObject["REFID"])
 
-        textureCoordNode = nodes.new(type="ShaderNodeTexCoord")
+        uvmappernode = nodes.new(type="ShaderNodeUVMap")
+        uvmappernode.uv_map = meshdata.uv_layers[1].name if len(meshdata.uv_layers) > 1 else meshdata.uv_layers[0].name
         mappingNode = nodes.new(type="ShaderNodeMapping")
         mappingNode.inputs["Scale"].default_value[0] = round(_material["TextureScale"][0])
         mappingNode.inputs["Scale"].default_value[1] = round(_material["TextureScale"][1])
         mappingNode.inputs["Location"].default_value[0] = _material["TextureOffset"][0]
         mappingNode.inputs["Location"].default_value[1] = _material["TextureOffset"][1]
-        nodetree.links.new(textureCoordNode.outputs["UV"], mappingNode.inputs["Vector"])
-        if bakeJob["BakeMethod"] == 1:
-            if _material["Textures"][0] != -1:
-                albedoNode = nodes.new(type="ShaderNodeTexImage")
-                albedoNode.label = "AlbedoTexture"
-                texturePath = TexturesPath + str(_material["Textures"][0]) + ".png"
-                albedoNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True)
-                mixRGBNode = nodes.new(type="ShaderNodeMixRGB")
-                mixRGBNode.blend_type = "MULTIPLY"
-                mixRGBNode.inputs[0].default_value = 1.0
-                mixRGBNode.inputs[2].default_value[0] = _material["AlbedoColor"][0]
-                mixRGBNode.inputs[2].default_value[1] = _material["AlbedoColor"][1]
-                mixRGBNode.inputs[2].default_value[2] = _material["AlbedoColor"][2]
-                nodetree.links.new(mappingNode.outputs["Vector"], albedoNode.inputs["Vector"])
-                nodetree.links.new(albedoNode.outputs["Color"], mixRGBNode.inputs[1])
-                nodetree.links.new(mixRGBNode.outputs["Color"], inputs["Base Color"])
-            if _material["Textures"][1] != -1:
-                emissiveNode = nodes.new(type="ShaderNodeTexImage")
-                emissiveNode.label = "EmissiveTexture"
-                texturePath = TexturesPath + str(_material["Textures"][1]) + ".png"
-                emissiveNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True)
-                mixRGBNode = nodes.new(type="ShaderNodeMixRGB")
-                mixRGBNode.blend_type = "MULTIPLY"
-                mixRGBNode.inputs[0].default_value = 1.0
-                mixRGBNode.inputs[2].default_value[0] = _material["EmissiveColor"][0]
-                mixRGBNode.inputs[2].default_value[1] = _material["EmissiveColor"][1]
-                mixRGBNode.inputs[2].default_value[2] = _material["EmissiveColor"][2]
-                nodetree.links.new(mappingNode.outputs["Vector"], emissiveNode.inputs["Vector"])
-                nodetree.links.new(emissiveNode.outputs["Color"], mixRGBNode.inputs[1])
-                nodetree.links.new(mixRGBNode.outputs["Color"], inputs["Emission"])
+        nodetree.links.new(uvmappernode.outputs["UV"], mappingNode.inputs["Vector"])
+        
+        if _material["Textures"][0] != -1:
+            albedoNode = nodes.new(type="ShaderNodeTexImage")
+            albedoNode.label = "AlbedoTexture"
+            texturePath = TexturesPath + str(_material["Textures"][0]) + ".png"
+            albedoNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True)
+            mixRGBNode = nodes.new(type="ShaderNodeMixRGB")
+            mixRGBNode.blend_type = "MULTIPLY"
+            mixRGBNode.inputs[0].default_value = 1.0
+            mixRGBNode.inputs[2].default_value[0] = _material["AlbedoColor"][0]
+            mixRGBNode.inputs[2].default_value[1] = _material["AlbedoColor"][1]
+            mixRGBNode.inputs[2].default_value[2] = _material["AlbedoColor"][2]
+            nodetree.links.new(mappingNode.outputs["Vector"], albedoNode.inputs["Vector"])
+            nodetree.links.new(albedoNode.outputs["Color"], mixRGBNode.inputs[1])
+            nodetree.links.new(mixRGBNode.outputs["Color"], inputs["Base Color"])
+            if bakeJob["BakeMethod"] == 1:
+                outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Albedo\\"
+                exportTiledTexture(albedoNode.image, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
+        if _material["Textures"][1] != -1:
+            emissiveNode = nodes.new(type="ShaderNodeTexImage")
+            emissiveNode.label = "EmissiveTexture"
+            texturePath = TexturesPath + str(_material["Textures"][1]) + ".png"
+            emissiveNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True)
+            mixRGBNode = nodes.new(type="ShaderNodeMixRGB")
+            mixRGBNode.blend_type = "MULTIPLY"
+            mixRGBNode.inputs[0].default_value = 1.0
+            mixRGBNode.inputs[2].default_value[0] = _material["EmissiveColor"][0]
+            mixRGBNode.inputs[2].default_value[1] = _material["EmissiveColor"][1]
+            mixRGBNode.inputs[2].default_value[2] = _material["EmissiveColor"][2]
+            nodetree.links.new(mappingNode.outputs["Vector"], emissiveNode.inputs["Vector"])
+            nodetree.links.new(emissiveNode.outputs["Color"], mixRGBNode.inputs[1])
+            nodetree.links.new(mixRGBNode.outputs["Color"], inputs["Emission"])
+            if bakeJob["BakeMethod"] == 1:
                 outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Emissive\\"
                 exportTiledTexture(emissiveNode.image, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
-            if _material["Textures"][2] != -1:
-                normalNode = nodes.new(type="ShaderNodeTexImage")
-                normalNode.label = "NormalTexture"
-                texturePath = TexturesPath + str(_material["Textures"][2]) + ".png"
-                normalNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True)
-                nodetree.links.new(mappingNode.outputs["Vector"], normalNode.inputs["Vector"])
-                normalmapNode = nodes.new(type="ShaderNodeNormalMap")
-                nodetree.links.new(normalNode.outputs["Color"], normalmapNode.inputs["Color"])
-                nodetree.links.new(normalmapNode.outputs["Normal"], inputs["Normal"])
+        if _material["Textures"][2] != -1:
+            normalNode = nodes.new(type="ShaderNodeTexImage")
+            normalNode.label = "NormalTexture"
+            texturePath = TexturesPath + str(_material["Textures"][2]) + ".png"
+            normalNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True)
+            nodetree.links.new(mappingNode.outputs["Vector"], normalNode.inputs["Vector"])
+            normalmapNode = nodes.new(type="ShaderNodeNormalMap")
+            nodetree.links.new(normalNode.outputs["Color"], normalmapNode.inputs["Color"])
+            nodetree.links.new(normalmapNode.outputs["Normal"], inputs["Normal"])
+            if bakeJob["BakeMethod"] == 1:
                 outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Normal\\"
                 exportTiledTexture(normalNode.image, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
-            if _material["Textures"][5] != -1:
-                metallicNode = nodes.new(type="ShaderNodeTexImage")
-                metallicNode.label = "MetallicTexture"
-                texturePath = TexturesPath + str(_material["Textures"][5]) + ".png"
-                metallicNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True)
-                nodetree.links.new(mappingNode.outputs["Vector"], metallicNode.inputs["Vector"])
-                splitRGBnode = nodes.new(type="ShaderNodeSeparateRGB")
-                invertNode = nodes.new(type="ShaderNodeInvert")
-                nodetree.links.new(metallicNode.outputs["Color"], splitRGBnode.inputs["Image"])
-                nodetree.links.new(splitRGBnode.outputs["R"], inputs["Metallic"])
-                nodetree.links.new(metallicNode.outputs["Alpha"], invertNode.inputs["Color"])
-                nodetree.links.new(invertNode.outputs["Color"], inputs["Roughness"])
+        if _material["Textures"][5] != -1:
+            metallicNode = nodes.new(type="ShaderNodeTexImage")
+            metallicNode.label = "MetallicTexture"
+            texturePath = TexturesPath + str(_material["Textures"][5]) + ".png"
+            metallicNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True)
+            nodetree.links.new(mappingNode.outputs["Vector"], metallicNode.inputs["Vector"])
+            splitRGBnode = nodes.new(type="ShaderNodeSeparateRGB")
+            invertNode = nodes.new(type="ShaderNodeInvert")
+            nodetree.links.new(metallicNode.outputs["Color"], splitRGBnode.inputs["Image"])
+            nodetree.links.new(splitRGBnode.outputs["R"], inputs["Metallic"])
+            nodetree.links.new(metallicNode.outputs["Alpha"], invertNode.inputs["Color"])
+            nodetree.links.new(invertNode.outputs["Color"], inputs["Roughness"])
+            if bakeJob["BakeMethod"] == 1:
                 outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Metallic\\"
                 exportTiledTexture(metallicNode.image, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
-            if _material["Textures"][6] != -1:
-                specularNode = nodes.new(type="ShaderNodeTexImage")
-                specularNode.label = "SpecularTexture"
-                texturePath = TexturesPath + str(_material["Textures"][6]) + ".png"
-                specularNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True)
-                nodetree.links.new(mappingNode.outputs["Vector"], specularNode.inputs["Vector"])
-                nodetree.links.new(specularNode.outputs["Color"], inputs["Specular"])
+        if _material["Textures"][6] != -1:
+            specularNode = nodes.new(type="ShaderNodeTexImage")
+            specularNode.label = "SpecularTexture"
+            texturePath = TexturesPath + str(_material["Textures"][6]) + ".png"
+            specularNode.image = bpy.data.images.load(filepath=texturePath, check_existing=True)
+            nodetree.links.new(mappingNode.outputs["Vector"], specularNode.inputs["Vector"])
+            nodetree.links.new(specularNode.outputs["Color"], inputs["Specular"])
+            if bakeJob["BakeMethod"] == 1:
                 outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Specular\\"
                 exportTiledTexture(specularNode.image, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
-            if _material["Textures"][3] != -1:
-                texturePath = TexturesPath + str(_material["Textures"][3]) + ".png"
-                heightImage = bpy.data.images.load(filepath=texturePath, check_existing=True)
+        if _material["Textures"][3] != -1:
+            texturePath = TexturesPath + str(_material["Textures"][3]) + ".png"
+            heightImage = bpy.data.images.load(filepath=texturePath, check_existing=True)
+            if bakeJob["BakeMethod"] == 1:
                 outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Height\\"
                 exportTiledTexture(heightImage, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
-            if _material["Textures"][4] != -1:
-                texturePath = TexturesPath + str(_material["Textures"][4]) + ".png"
-                occlusionImage = bpy.data.images.load(filepath=texturePath, check_existing=True)
+        if _material["Textures"][4] != -1:
+            texturePath = TexturesPath + str(_material["Textures"][4]) + ".png"
+            occlusionImage = bpy.data.images.load(filepath=texturePath, check_existing=True)
+            if bakeJob["BakeMethod"] == 1:
                 outDir = ResoniteBakeryOutputPath + str(bakeObject["REFID"]) + "\\Materials\\" + str(materialIndex) + "\\Occlusion\\"
                 exportTiledTexture(occlusionImage, outDir, _material["TextureScale"][0], _material["TextureScale"][1], _material["TextureOffset"][0], _material["TextureOffset"][1], bakeJob["Upscale"])
 
@@ -319,7 +341,9 @@ for bakedObject in objectsToBake:
 bpy.ops.object.bake(use_automatic_name=True, type="COMBINED",  save_mode="EXTERNAL")
 
 
-
+if bakeJob["BakeMethod"] == 0:
+    for i in range(0,20):
+        print("EXPORTING MESHES!!!!!!!!!")
 bo = 0
 for bakedObject in objectsToBake:
     bpy.ops.object.select_all(action="DESELECT")
@@ -329,20 +353,41 @@ for bakedObject in objectsToBake:
         savepath = ResoniteBakeryOutputPath + str(bakedTextures_RendererIndex[bo]) + "\\Mesh"
         if not os.path.exists(savepath):
             os.makedirs(savepath)
-        #For some reason, reimported meshes seem to be arbitrarily rotated. Guess I have to rotate them in-game instead.
-        #selectedObject.rotation_mode = "XYZ"
-        #selectedObject.rotation_euler[2] = selectedObject.rotation_euler[2] + pi/2
-        #selectedObject.rotation_mode = "QUATERNION"
-        #bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+        #For some reason, reimported meshes seem to be arbitrarily rotated. Guess I have to rotate them in-game instead. - @Toxic_Cookie
+        #Here, fixed, just rotate via quaternions flipping back to the original import rotations so it imports correctly. Basically a random quaternion flip inherited from earlier code - @989onan
+        selectedObject.rotation_mode = "QUATERNION"
+        selectedObject.rotation_quaternion.w = 0
+        selectedObject.rotation_quaternion.x = -1
+        selectedObject.rotation_quaternion.y = 0
+        selectedObject.rotation_quaternion.z = 0
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+        print("EXPORTING " + savepath + "\\Mesh.glb")
         bpy.ops.export_scene.gltf(filepath=savepath + "\\Mesh.glb", check_existing=False, use_selection=True)
+        selectedObject.rotation_quaternion.w = 0
+        selectedObject.rotation_quaternion.x = 1
+        selectedObject.rotation_quaternion.y = 0
+        selectedObject.rotation_quaternion.z = 0
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+        meshObj.rotation_quaternion.w = bakeObject["Transform"]["Rotation"][0]
+        meshObj.rotation_quaternion.x = -bakeObject["Transform"]["Rotation"][3]
+        meshObj.rotation_quaternion.y = bakeObject["Transform"]["Rotation"][1]
+        meshObj.rotation_quaternion.z = bakeObject["Transform"]["Rotation"][2]
+
+    meshdata:bpy.types.Mesh = bakedObject.data
+    meshdata.uv_layers[0].active_render = True
     bo = bo + 1
 
+if bakeJob["BakeMethod"] == 0:
+    for i in range(0,20):
+        print("EXPORTING IMAGES!!!!!!!!!")
 bn = 0
 for bakedNode in bakeNodes:
     savepath = ResoniteBakeryOutputPath + str(bakedTextures_RendererIndex[bn]) + "\\Materials\\" + str(bakedTextures_MaterialIndex[bn])
     if not os.path.exists(savepath):
         os.makedirs(savepath)
     bakedNode.image.save_render(filepath=savepath + "\\Emissive.png")
+    print("EXPORTING"+ savepath+ "\\Emissive.png")
+    bakeNodetrees[bn].links.new(bakedNode.outputs["Color"], nodes["Material Output"].inputs["Surface"]) #so we can see the thing when done and keeping blender open.
     bn = bn + 1
 
 #bpy.ops.wm.quit_blender()
