@@ -1,5 +1,5 @@
 # ResoniteBakery
-A light baking solution for Resonite.
+A light baking solution for Resonite. Originally by @Toxic_Cookie
 
 # Prequisites
 1. You must first install [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader).
