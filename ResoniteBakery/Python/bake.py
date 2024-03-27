@@ -21,9 +21,9 @@ _scene.render.image_settings.color_mode = "RGBA"
 _scene.world.use_nodes = True
 worldOutputNode = _scene.world.node_tree.nodes["World Output"]
 backgroundNode = _scene.world.node_tree.nodes.new(type="ShaderNodeBackground")
-backgroundNode.inputs["Color"].default_value[0] = bakeJob["Skybox"]["PrimaryColor"][0]
-backgroundNode.inputs["Color"].default_value[1] = bakeJob["Skybox"]["PrimaryColor"][1]
-backgroundNode.inputs["Color"].default_value[2] = bakeJob["Skybox"]["PrimaryColor"][2]
+backgroundNode.inputs["Color"].default_value[0] = 0#bakeJob["Skybox"]["PrimaryColor"][0]
+backgroundNode.inputs["Color"].default_value[1] = 0#bakeJob["Skybox"]["PrimaryColor"][1]
+backgroundNode.inputs["Color"].default_value[2] = 0#bakeJob["Skybox"]["PrimaryColor"][2]
 skyTextureNode = _scene.world.node_tree.nodes.new(type="ShaderNodeTexImage")
 if bakeJob["Skybox"]["Texture"] != -1:
     texturePath = TexturesPath + str(bakeJob["Skybox"]["Texture"]) + ".png"
@@ -104,7 +104,11 @@ for Light in bakeJob["BakeLights"]:
     light_ob = bpy.context.object
     light = light_ob.data
     light.energy = Light["Watts"]
-    light.color = (Light["Color"][0], Light["Color"][1], Light["Color"][2])
+    try:
+        light.color = (Light["Color"][0], Light["Color"][1], Light["Color"][2])
+    except:
+        continue
+    
     light.use_shadow = Light["CastShadow"]
     if Light["LightType"] == 2:
         light.spot_size = Light["SpotAngle"]
@@ -113,8 +117,8 @@ for Light in bakeJob["BakeLights"]:
     light_ob.location.z = Light["Transform"]["Position"][1]
     light_ob.location.y = Light["Transform"]["Position"][2]
 
-    light_ob.rotation_quaternion.w = -Light["Transform"]["Rotation"][3]
-    light_ob.rotation_quaternion.x = Light["Transform"]["Rotation"][0]
+    light_ob.rotation_quaternion.w = Light["Transform"]["Rotation"][0]
+    light_ob.rotation_quaternion.x = -Light["Transform"]["Rotation"][3]
     light_ob.rotation_quaternion.z = Light["Transform"]["Rotation"][1]
     light_ob.rotation_quaternion.y = Light["Transform"]["Rotation"][2]
 
@@ -131,6 +135,7 @@ for bakeObject in bakeJob["BakeObjects"]:
     meshPath = MeshesPath + str(bakeObject["Renderer"]["Mesh"]) + ".gltf"
     bpy.ops.import_scene.gltf(filepath=meshPath, import_pack_images=False)
     meshObj: bpy.types.Object = bpy.context.selected_objects[0]
+    meshdata: bpy.types.Mesh = meshObj.data
     bpy.ops.object.select_all(action="DESELECT")
     meshObj.select_set(True)
     if meshObj.type != "MESH":
@@ -140,18 +145,22 @@ for bakeObject in bakeJob["BakeObjects"]:
     
         
     if bakeJob["BakeMethod"] == 0:
+        if not (len(meshdata.uv_layers) < 2):
+            meshdata.uv_layers.active_index = 1
+            bpy.ops.mesh.uv_texture_remove()
         bpy.ops.object.editmode_toggle()
         size = clamp(bakeJob["DefaultResolution"], 64, 4096)
         bpy.ops.uv.lightmap_pack(PREF_CONTEXT="ALL_FACES", PREF_PACK_IN_ONE=True, PREF_NEW_UVLAYER=True, PREF_IMG_PX_SIZE=size, PREF_BOX_DIV=48, PREF_MARGIN_DIV=0.02)
         bpy.ops.object.editmode_toggle()
+
 
     meshObj.location.x = bakeObject["Transform"]["Position"][0]
     meshObj.location.z = bakeObject["Transform"]["Position"][1]
     meshObj.location.y = bakeObject["Transform"]["Position"][2]
 
     meshObj.rotation_mode = "QUATERNION"
-    meshObj.rotation_quaternion.w = -bakeObject["Transform"]["Rotation"][3]
-    meshObj.rotation_quaternion.x = bakeObject["Transform"]["Rotation"][0]
+    meshObj.rotation_quaternion.w = bakeObject["Transform"]["Rotation"][0]
+    meshObj.rotation_quaternion.x = -bakeObject["Transform"]["Rotation"][3]
     meshObj.rotation_quaternion.y = bakeObject["Transform"]["Rotation"][1]
     meshObj.rotation_quaternion.z = bakeObject["Transform"]["Rotation"][2]
 
@@ -293,12 +302,29 @@ for bakeObject in bakeJob["BakeObjects"]:
         nodes.active = bakeNode
         materialIndex = materialIndex + 1
 
+for i in range(0,20):
+    print("START BAKE!!!!!!!!!")
+
+bo = 0
+bpy.ops.object.select_all(action="DESELECT")
+for bakedObject in objectsToBake:
+    
+    selectedObject: bpy.types.Object = bpy.data.objects[bakedObject.name]
+    data: bpy.types.Mesh = selectedObject.data
+    if(len(data.uv_layers) > 0):
+        selectedObject.select_set(True)
+    else:
+        continue
+
+bpy.ops.object.bake(use_automatic_name=True, type="COMBINED",  save_mode="EXTERNAL")
+
+
+
 bo = 0
 for bakedObject in objectsToBake:
     bpy.ops.object.select_all(action="DESELECT")
-    selectedObject = bpy.data.objects[bakedObject.name]
+    selectedObject: bpy.types.Object = bpy.data.objects[bakedObject.name]
     selectedObject.select_set(True)
-    bpy.ops.object.bake(use_automatic_name=True, type="COMBINED",  save_mode="EXTERNAL")
     if bakeJob["BakeMethod"] == 0:
         savepath = ResoniteBakeryOutputPath + str(bakedTextures_RendererIndex[bo]) + "\\Mesh"
         if not os.path.exists(savepath):
@@ -316,7 +342,7 @@ for bakedNode in bakeNodes:
     savepath = ResoniteBakeryOutputPath + str(bakedTextures_RendererIndex[bn]) + "\\Materials\\" + str(bakedTextures_MaterialIndex[bn])
     if not os.path.exists(savepath):
         os.makedirs(savepath)
-    bakedNode.image.save_render(filepath=savepath + "\\Albedo.png")
+    bakedNode.image.save_render(filepath=savepath + "\\Emissive.png")
     bn = bn + 1
 
 #bpy.ops.wm.quit_blender()

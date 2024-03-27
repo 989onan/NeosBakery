@@ -64,6 +64,7 @@ namespace ResoniteBakery.Core
         /// <summary>The list of temporary renderer roations used for previewing and finalizing changes.</summary>
         static readonly Dictionary<MeshRenderer, RotationDefinition> rendererRotations = new Dictionary<MeshRenderer, RotationDefinition>();
 
+        static Slot lightRoot = null;
         /// <summary>Bakes lighting in a given scene of models and lights.</summary>
         /// <returns>True if the bake was successful.</returns>
         public static async Task<bool> Bake(Slot meshRoot, Slot lightRoot, string blenderPath = null, int defaultResolution = 1024, bool upscale = true, BakeType bakeType = BakeType.DirectAndIndirect, BakeMethod bakeMethod = BakeMethod.SeparateAlbedo, CancellationToken token = default)
@@ -137,18 +138,28 @@ namespace ResoniteBakery.Core
                     {
                         continue;
                     }
-                    if (!renderer.Slot.ActiveSelf)
+                    if (!renderer.Slot.IsActive)
                     {
                         continue;
                     }
                     try
                     {
-                        if (renderer.Slot.Tag.ToLower().Contains("<nobake>"))
+                        try
+                        {
+                            if (renderer.Slot.Tag.ToLower() == "<nobake>")
+                            {
+                                continue;
+                            }
+                        }
+                        catch (Exception e) { Bakery.Msg(e.Message + e.StackTrace); }
+
+                        if (null != renderer.Slot.FindParent((Slot s) => s.Tag.ToLower() == "<nobake"))
                         {
                             continue;
                         }
+
                     }
-                    catch(Exception){/*I do not care that it is null lol*/}
+                    catch (Exception e) { Bakery.Msg(e.Message + e.StackTrace); }
 
                     int meshUriHash = await CacheMesh(renderer);
                     if (meshUriHash == -1)
@@ -180,8 +191,7 @@ namespace ResoniteBakery.Core
                         bakeObjectDefinitions.Add(new BakeObjectDefinition(new TransformDefinition(renderer.Slot), new RendererDefinition(meshUriHash, materials.ToArray()), renderer.ReferenceID));
                         ID_Renderer.Add(renderer.ReferenceID.Position, renderer);
                     }
-                    catch(Exception e ) {/*tried to add duplicates, ignore.*/}
-                    
+                    catch (Exception e) { Bakery.Msg(e.Message + e.StackTrace); }
                 }
                 RaiseOnBakeInfo("Gathered (" + renderers.Count.ToString() + ") total renderers!");
 
@@ -191,6 +201,10 @@ namespace ResoniteBakery.Core
                 for (int i = 0; i < lightDefinitions.Length; i++)
                 {
                     RaiseOnBakeInfo("Evaluating light on slot: " + lights[i].Slot.NameField.Value);
+                    if (!lights[i].Slot.IsActive)
+                    {
+                        continue;
+                    }
                     lightDefinitions[i] = new LightDefinition(lights[i]);
                 }
                 RaiseOnBakeInfo("Gathered (" + lights.Count.ToString() + ") total lights!");
@@ -466,7 +480,7 @@ namespace ResoniteBakery.Core
                             materialMultiplexer.Assets.Add(bakedMaterial);
                             CopyMaterialProperties(pbs, bakedMaterial);
                             bakedMaterial.AlbedoColor.Value = new colorX(new color(1f, 1f));
-                            bakedMaterial.SecondaryEmissiveColor.Value = new colorX(new color(0.5f, 1f));
+                            bakedMaterial.SecondaryEmissiveColor.Value = new colorX(new color(1f, 1f));
                             await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Baked);
                         }
                         else
@@ -475,15 +489,15 @@ namespace ResoniteBakery.Core
                             materialMultiplexer.Assets.Add(bakedMaterial);
                             CopyMaterialProperties(pbs, bakedMaterial);
                             bakedMaterial.AlbedoColor.Value = new colorX(new color(1f, 1f));
-                            bakedMaterial.EmissiveColor.Value = new colorX(new color(0.5f, 1f));
-                            await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Baked);
+                            bakedMaterial.EmissiveColor.Value = new colorX(new color(1f, 1f));
+                            await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Albedo);
+                            await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Emissive);
                             if (pbs.TextureScale.Value != new float2(1f, 1f) || pbs.TextureOffset.Value != new float2(1f, 1f))
                             {
                                 await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Normal);
                                 await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Height);
                                 await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Occlusion);
                                 await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Metallic);
-                                await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Specular);
                             }
                         }
                     }
@@ -495,7 +509,7 @@ namespace ResoniteBakery.Core
                             materialMultiplexer.Assets.Add(bakedMaterial);
                             CopyMaterialProperties(pbs, bakedMaterial);
                             bakedMaterial.AlbedoColor.Value = new colorX(new color(1f, 1f));
-                            bakedMaterial.SecondaryEmissiveColor.Value = new colorX(new color(0.5f, 1f));
+                            bakedMaterial.SecondaryEmissiveColor.Value = new colorX(new color(1f, 1f));
                             await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Baked);
                         }
                         else
@@ -504,14 +518,15 @@ namespace ResoniteBakery.Core
                             materialMultiplexer.Assets.Add(bakedMaterial);
                             CopyMaterialProperties(pbs, bakedMaterial);
                             bakedMaterial.AlbedoColor.Value = new colorX(new color(1f, 1f));
-                            bakedMaterial.EmissiveColor.Value = new colorX(new color(0.5f, 1f));
-                            await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Baked);
+                            bakedMaterial.EmissiveColor.Value = new colorX(new color(1f, 1f));
+                            
+                            await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Albedo);
+                            await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Emissive);
                             if (pbs.TextureScale.Value != new float2(1f, 1f) || pbs.TextureOffset.Value != new float2(1f, 1f))
                             {
                                 await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Normal);
                                 await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Height);
                                 await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Occlusion);
-                                await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Metallic);
                                 await ImportAndAssignTexture(_rendererID, m, MaterialOutputSlot, bakedMaterial, TextureType.Specular);
                             }
                         }
@@ -561,7 +576,7 @@ namespace ResoniteBakery.Core
             switch (textureType)
             {
                 case TextureType.Baked:
-                    stringBuilder.Append(@"\\Albedo.png");
+                    stringBuilder.Append(@"\\Emissive.png");
                     break;
                 case TextureType.Albedo:
                     stringBuilder.Append(@"\\Albedo.png");
@@ -596,7 +611,6 @@ namespace ResoniteBakery.Core
                 switch (textureType)
                 {
                     case TextureType.Baked:
-                        bakedMaterial.SecondaryAlbedoTexture.Target = importedTexture;
                         bakedMaterial.SecondaryEmissiveMap.Target = importedTexture;
                         break;
                     case TextureType.Albedo:
@@ -854,6 +868,11 @@ namespace ResoniteBakery.Core
             {
                 assetMultiplexer.Index.Value = viewMode == ViewType.Realtime ? 0 : 1;
             }
+            try
+            {
+                lightRoot.ActiveSelf = viewMode == ViewType.Realtime ? true : false;
+            }
+            catch (Exception) {/*idc*/ }
             foreach (MeshRenderer renderer in renderers)
             {
                 try
