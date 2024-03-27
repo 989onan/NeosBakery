@@ -28,8 +28,8 @@ A light baking solution for Resonite. Originally by @Toxic_Cookie
 2. Possibly using Unity as a method of light baking.
 
 # Rules
-1. You must adequately credit me if you use this software in your project.
-2. Adequate credit requires you to at least have my name and the link to this project listed in a credits section of your project.
+1. You must adequately credit Toxic_Cookie if you use this software in your project.
+2. Adequate credit requires you to at least have Toxic_Cookie's name and the link to this project listed in a credits section of your project.
 3. Credit Toxic_Cookie for the original addon.
 
 # Contributing
