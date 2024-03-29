@@ -552,12 +552,6 @@ namespace ResoniteBakery.Core
             importedMeshRenderer.Mesh.Target.Destroy();
             importedMeshRenderer.Slot.Destroy();
 
-            floatQ euler = floatQ.Euler(renderer.Slot.Rotation_Field.Value.EulerAngles.x,
-                renderer.Slot.Rotation_Field.Value.EulerAngles.y + 180f,
-                renderer.Slot.Rotation_Field.Value.EulerAngles.z);
-            rendererRotations.Add(renderer, new RotationDefinition(renderer.Slot.Rotation_Field.Value, euler));
-            renderer.Slot.Rotation_Field.Value = euler;
-
             return importedMesh;
         }
         
@@ -870,17 +864,6 @@ namespace ResoniteBakery.Core
                 lightRoot_s.ActiveSelf = viewMode == ViewType.Realtime;
             }
             catch (Exception) {/*idc*/ }
-            foreach (MeshRenderer renderer in renderers)
-            {
-                try
-                {
-                    renderer.Slot.Rotation_Field.Value = viewMode == ViewType.Realtime ? rendererRotations[renderer].OriginalRotation : rendererRotations[renderer].NewRotation;
-                }
-                catch
-                {
-
-                }
-            }
 
             return true;
         }
@@ -919,17 +902,6 @@ namespace ResoniteBakery.Core
                 if (changesType == ChangesType.Discard)
                 {
                     destroySlot.Destroy();
-                }
-            }
-            foreach (MeshRenderer renderer in renderers)
-            {
-                try
-                {
-                    renderer.Slot.Rotation_Field.Value = changesType == ChangesType.Discard ? rendererRotations[renderer].OriginalRotation : rendererRotations[renderer].NewRotation;
-                }
-                catch
-                {
-
                 }
             }
 

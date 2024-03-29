@@ -341,9 +341,7 @@ for bakedObject in objectsToBake:
 bpy.ops.object.bake(use_automatic_name=True, type="COMBINED",  save_mode="EXTERNAL")
 
 
-if bakeJob["BakeMethod"] == 0:
-    for i in range(0,20):
-        print("EXPORTING MESHES!!!!!!!!!")
+
 bo = 0
 for bakedObject in objectsToBake:
     bpy.ops.object.select_all(action="DESELECT")
@@ -357,36 +355,31 @@ for bakedObject in objectsToBake:
         #Here, fixed, just rotate via quaternions flipping back to the original import rotations so it imports correctly. Basically a random quaternion flip inherited from earlier code - @989onan
         selectedObject.rotation_mode = "QUATERNION"
         selectedObject.rotation_quaternion.w = 0
-        selectedObject.rotation_quaternion.x = -1
+        selectedObject.rotation_quaternion.x = 0
         selectedObject.rotation_quaternion.y = 0
-        selectedObject.rotation_quaternion.z = 0
+        selectedObject.rotation_quaternion.z = -1.0
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
-        print("EXPORTING " + savepath + "\\Mesh.glb")
         bpy.ops.export_scene.gltf(filepath=savepath + "\\Mesh.glb", check_existing=False, use_selection=True)
         selectedObject.rotation_quaternion.w = 0
-        selectedObject.rotation_quaternion.x = 1
+        selectedObject.rotation_quaternion.x = 0
         selectedObject.rotation_quaternion.y = 0
-        selectedObject.rotation_quaternion.z = 0
+        selectedObject.rotation_quaternion.z = -1.0
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
-        meshObj.rotation_quaternion.w = bakeObject["Transform"]["Rotation"][0]
-        meshObj.rotation_quaternion.x = -bakeObject["Transform"]["Rotation"][3]
-        meshObj.rotation_quaternion.y = bakeObject["Transform"]["Rotation"][1]
-        meshObj.rotation_quaternion.z = bakeObject["Transform"]["Rotation"][2]
-
+        selectedObject.rotation_quaternion.w = bakeObject["Transform"]["Rotation"][0]
+        selectedObject.rotation_quaternion.x = -bakeObject["Transform"]["Rotation"][3]
+        selectedObject.rotation_quaternion.y = bakeObject["Transform"]["Rotation"][1]
+        selectedObject.rotation_quaternion.z = bakeObject["Transform"]["Rotation"][2]
+        
     meshdata:bpy.types.Mesh = bakedObject.data
     meshdata.uv_layers[0].active_render = True
     bo = bo + 1
 
-if bakeJob["BakeMethod"] == 0:
-    for i in range(0,20):
-        print("EXPORTING IMAGES!!!!!!!!!")
 bn = 0
 for bakedNode in bakeNodes:
     savepath = ResoniteBakeryOutputPath + str(bakedTextures_RendererIndex[bn]) + "\\Materials\\" + str(bakedTextures_MaterialIndex[bn])
     if not os.path.exists(savepath):
         os.makedirs(savepath)
     bakedNode.image.save_render(filepath=savepath + "\\Emissive.png")
-    print("EXPORTING"+ savepath+ "\\Emissive.png")
     bakeNodetrees[bn].links.new(bakedNode.outputs["Color"], nodes["Material Output"].inputs["Surface"]) #so we can see the thing when done and keeping blender open.
     bn = bn + 1
 

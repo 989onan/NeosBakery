@@ -183,6 +183,7 @@ namespace ResoniteBakery.Core
             UI.Text("Status:");
             statusText = UI.Text("Idle...");
 
+            WizardSlot.Destroyed += Slot_OnPrepareDestroy;
             WizardSlot.PositionInFrontOfUser(float3.Backward, distance: 1f);
         }
 
@@ -214,7 +215,7 @@ namespace ResoniteBakery.Core
             }
         }
 
-        void Slot_OnPrepareDestroy(Slot slot)
+        void Slot_OnPrepareDestroy(IDestroyable slot)
         {
             LightBaker.OnBakeCancelled -= OnCancelled;
             LightBaker.OnBakeInfo -= UpdateStatusText;
